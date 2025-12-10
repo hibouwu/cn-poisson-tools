@@ -4,40 +4,130 @@
 /* Poisson problem (Heat equation)            */
 /**********************************************/
 #include "lib_poisson1D.h"
+#include <string.h>
 
 void set_GB_operator_colMajor_poisson1D(double* AB, int *lab, int *la, int *kv){
-  // TODO: Fill AB with the tridiagonal Poisson operator
+  int n = *la;
+  int ldab = *lab;
+  int diag = *kv + 1;
+  int super = diag - 1;
+  int sub = diag + 1;
+
+  for (int j = 0; j < n; j++) {
+    for (int i = 0; i < ldab; i++) {
+      AB[j * ldab + i] = 0.0; 
+    }
+    if (j > 0) {
+      AB[j * ldab + super] = -1.0;
+    }
+    AB[j * ldab + diag] = 2.0;
+    if (j < n - 1) {
+      AB[j * ldab + sub] = -1.0;
+    }
+  }
 }
 
 void set_GB_operator_colMajor_poisson1D_Id(double* AB, int *lab, int *la, int *kv){
-  // TODO: Fill AB with the identity matrix
-  // Only the main diagonal should have 1, all other entries are 0
+  int n = *la;
+  int ldab = *lab;
+  int diag = *kv + 1;
+
+  int total = n * ldab;
+  for (int idx = 0; idx < total; idx++) {
+    AB[idx] = 0.0;
+  }
+
+  for (int j = 0; j < n; j++) {
+    AB[j * ldab + diag] = 1.0;
+  }
 }
 
 void set_dense_RHS_DBC_1D(double* RHS, int* la, double* BC0, double* BC1){
-  // TODO: Compute RHS vector
+  int n = *la;
+  if (n <= 0) {
+    return;
+  }
+
+  memset(RHS, 0, (size_t) n * sizeof(double));
+  RHS[0] += (*BC0);
+  RHS[n - 1] += (*BC1);
 }  
 
 void set_analytical_solution_DBC_1D(double* EX_SOL, double* X, int* la, double* BC0, double* BC1){
-  // TODO: Compute the exact analytical solution at each grid point
-  // This depends on the source term f(x) used in set_dense_RHS_DBC_1D
+  int n = *la;
+  double t0 = *BC0;
+  double dt = *BC1 - *BC0;
+
+  for (int i = 0; i < n; i++) {
+    EX_SOL[i] = t0 + X[i] * dt; /* Linear solution for homogeneous source term */
+  }
 }  
 
 void set_grid_points_1D(double* x, int* la){
-  // TODO: Generate uniformly spaced grid points in [0,1]
+  int n = *la;
+  double h = 1.0 / (double) (n + 1);
+
+  for (int i = 0; i < n; i++) {
+    x[i] = (i + 1) * h;
+  }
 }
 
 double relative_forward_error(double* x, double* y, int* la){
-  // TODO: Compute the relative error using BLAS functions (dnrm2, daxpy or manual loop)
-  return 0.0;
+  int n = *la;
+  double *work = (double *) malloc((size_t) n * sizeof(double));
+  if (work == NULL) {
+    return DBL_MAX;
+  }
+
+  /* work = y - x */
+  cblas_dcopy(n, y, 1, work, 1);
+  cblas_daxpy(n, -1.0, x, 1, work, 1);
+
+  double num = cblas_dnrm2(n, work, 1);
+  double den = cblas_dnrm2(n, y, 1);
+  free(work);
+
+  if (den == 0.0) {
+    return (num == 0.0) ? 0.0 : DBL_MAX;
+  }
+  return num / den;
 }
 
 int indexABCol(int i, int j, int *lab){
-  // TODO: Return the correct index formula for column-major band storage
-  return 0;
+  return j * (*lab) + i;
 }
 
 int dgbtrftridiag(int *la, int*n, int *kl, int *ku, double *AB, int *lab, int *ipiv, int *info){
-  // TODO: Implement specialized LU factorization for tridiagonal matrices
+  int ncols = *n;
+  int ldab = *lab;
+  int diag = *kl + *ku;      /* Diagonal row index in band storage (0-based) */
+  int sub  = diag + *kl;     /* Sub-diagonal row index */
+  int super = diag - *ku;    /* Super-diagonal row index */
+
+  *info = 0;
+  if (ncols <= 0) {
+    return *info;
+  }
+
+  for (int i = 0; i < ncols; i++) {
+    ipiv[i] = i + 1; /* No pivoting for the tridiagonal case */
+  }
+
+  for (int j = 0; j < ncols - 1; j++) {
+    double pivot = AB[j * ldab + diag];
+    if (pivot == 0.0) {
+      *info = j + 1; /* 1-based position of zero pivot */
+      return *info;
+    }
+    double factor = AB[j * ldab + sub] / pivot;
+    AB[j * ldab + sub] = factor;
+
+    /* Update the next diagonal element */
+    AB[(j + 1) * ldab + diag] -= factor * AB[(j + 1) * ldab + super];
+  }
+
+  if (AB[(ncols - 1) * ldab + diag] == 0.0) {
+    *info = ncols;
+  }
   return *info;
 }

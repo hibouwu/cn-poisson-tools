@@ -58,7 +58,6 @@ int main(int argc,char *argv[])
   X=(double *) malloc(sizeof(double)*la);        /* Grid points */
 
   /* Initialize the problem: grid, RHS, and exact solution */
-  // TODO : you have to implement those functions
   set_grid_points_1D(X, &la);                                /* Create uniform grid */
   set_dense_RHS_DBC_1D(RHS,&la,&T0,&T1);                     /* Set up RHS with BC */
   set_analytical_solution_DBC_1D(EX_SOL, X, &la, &T0, &T1);  /* Compute exact solution */
@@ -106,7 +105,8 @@ int main(int argc,char *argv[])
 
   /* Alternative: solve directly using dgbsv */
   if (IMPLEM == SV) {
-    // TODO : use dgbsv
+    dgbsv_(&la, &kl, &ku, &NRHS, AB, &lab, ipiv, RHS, &la, &info);
+    if (info!=0){printf("\n INFO DGBSV = %d\n",info);}
   }
 
   /* Write results to files */
