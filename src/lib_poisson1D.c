@@ -59,7 +59,7 @@ void set_analytical_solution_DBC_1D(double* EX_SOL, double* X, int* la, double* 
   double dt = *BC1 - *BC0;
 
   for (int i = 0; i < n; i++) {
-    EX_SOL[i] = t0 + X[i] * dt; /* Linear solution for homogeneous source term */
+    EX_SOL[i] = t0 + X[i] * dt;
   }
 }  
 
@@ -79,7 +79,6 @@ double relative_forward_error(double* x, double* y, int* la){
     return DBL_MAX;
   }
 
-  /* work = y - x */
   cblas_dcopy(n, y, 1, work, 1);
   cblas_daxpy(n, -1.0, x, 1, work, 1);
 
@@ -100,9 +99,9 @@ int indexABCol(int i, int j, int *lab){
 int dgbtrftridiag(int *la, int*n, int *kl, int *ku, double *AB, int *lab, int *ipiv, int *info){
   int ncols = *n;
   int ldab = *lab;
-  int diag = *kl + *ku;      /* Diagonal row index in band storage (0-based) */
-  int sub  = diag + *kl;     /* Sub-diagonal row index */
-  int super = diag - *ku;    /* Super-diagonal row index */
+  int diag = *kl + *ku;
+  int sub  = diag + *kl;
+  int super = diag - *ku;
 
   *info = 0;
   if (ncols <= 0) {
@@ -110,19 +109,18 @@ int dgbtrftridiag(int *la, int*n, int *kl, int *ku, double *AB, int *lab, int *i
   }
 
   for (int i = 0; i < ncols; i++) {
-    ipiv[i] = i + 1; /* No pivoting for the tridiagonal case */
+    ipiv[i] = i + 1;
   }
 
   for (int j = 0; j < ncols - 1; j++) {
     double pivot = AB[j * ldab + diag];
     if (pivot == 0.0) {
-      *info = j + 1; /* 1-based position of zero pivot */
+      *info = j + 1;
       return *info;
     }
     double factor = AB[j * ldab + sub] / pivot;
     AB[j * ldab + sub] = factor;
 
-    /* Update the next diagonal element */
     AB[(j + 1) * ldab + diag] -= factor * AB[(j + 1) * ldab + super];
   }
 
