@@ -5,6 +5,7 @@
 /* using direct methods (LU factorization)*/
 /******************************************/
 #include "lib_poisson1D.h"
+#include <time.h>
 
 #define TRF 0  /* Use LAPACK dgbtrf for LU factorization */
 #define TRI 1  /* Use custom tridiagonal LU factorization */
@@ -39,14 +40,17 @@ int main(int argc,char *argv[])
 
   if (argc == 2) {
     IMPLEM = atoi(argv[1]);
-  } else if (argc > 2) {
-    perror("Application takes at most one argument");
+  } else if (argc > 3) {
+    perror("Application takes at most two arguments");
     exit(1);
   }
 
   /* Problem setup */
   NRHS=1;           /* Solving Ax=b with one right-hand side */
-  nbpoints=10000;      /* Total number of discretization points (including boundaries) */
+  nbpoints=10;      /* Total number of discretization points (including boundaries) */
+  if (argc >= 3){
+    nbpoints = atoi(argv[2]);
+  }
   la=nbpoints-2;    /* Number of interior points (excluding boundaries) */
   T0=-5.0;          /* Dirichlet boundary condition at x=0 */
   T1=5.0;           /* Dirichlet boundary condition at x=1 */
@@ -82,6 +86,10 @@ int main(int argc,char *argv[])
   printf("Solution with LAPACK\n");
   ipiv = (int *) calloc(la, sizeof(int));  /* Pivot indices for LU factorization */
 
+  clock_t start, end;
+  double cpu_time_used;
+  start = clock();
+
   /* LU Factorization using LAPACK's general band factorization */
   if (IMPLEM == TRF) {
     dgbtrf_(&la, &la, &kl, &ku, AB, &lab, ipiv, &info);
@@ -108,6 +116,10 @@ int main(int argc,char *argv[])
     dgbsv_(&la, &kl, &ku, &NRHS, AB, &lab, ipiv, RHS, &la, &info);
     if (info!=0){printf("\n INFO DGBSV = %d\n",info);}
   }
+  
+  end = clock();
+  cpu_time_used = ((double) (end - start)) * 1000.0 / CLOCKS_PER_SEC; // in ms
+  printf("Execution time (IMPLEM=%d, N=%d): %f ms\n", IMPLEM, nbpoints, cpu_time_used);
 
   /* Write results to files */
   write_GB_operator_colMajor_poisson1D(AB, &lab, &la, "LU.dat");  /* LU factors */
