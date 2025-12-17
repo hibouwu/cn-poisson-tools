@@ -122,21 +122,29 @@ Les éléments `*` sont généralement remplis à 0.
 ## ▷ Exercice 3. Référence et utilisation de BLAS/LAPACK / 练习 3：BLAS/LAPACK 参考
 
 1. En C, comment déclarer et allouer une matrice pour BLAS/LAPACK ?  
-   在 C 中如何声明和分配矩阵以供 BLAS/LAPACK 使用？  
+   在 C 中如何声明和分配矩阵以供 BLAS/LAPACK 使用？
+   - Allouer一块连续内存并按列主序存放，例如 `double *A = malloc(m*n*sizeof(double));`，对于带状矩阵用 `(kl+ku+1)*n` 的数组并手动放到对应行（行号 `ku+ i - j`）。
 2. Signification de la constante `LAPACK_COL_MAJOR` ?  
    `LAPACK_COL_MAJOR` 常量含义？  
+   - `LAPACK_COL_MAJOR` 表示数据采用 Fortran 风格的列主序，LAPACK 例程按列主序解释内存。  
 3. À quoi correspond la leading dimension (`ld`) ?  
    主维度 (`ld`) 指什么？  
+   - leading dimension（ld/lda/ldab）是同一列首元素间的内存跨度，至少为行数（带状时为保存带宽的物理行数）。
 4. Que fait la fonction `dgbmv` ? Quelle méthode implémente-t-elle ?  
    `dgbmv` 做什么，实现哪种运算/方法？  
+   - `dgbmv` 计算一般带状矩阵-向量乘：`y = alpha*A*x + beta*y`（BLAS2 矩阵向量乘）。
 5. Que fait la fonction `dgbtrf` ?  
+   - `dgbtrf` 对一般带状矩阵做 LU 分解并选主元，输出 LU 因子和 pivot。
    `dgbtrf` 功能？  
 6. Que fait la fonction `dgbtrs` ?  
    `dgbtrs` 功能？  
+   - `dgbtrs` 利用 `dgbtrf` 的 LU 因子和 pivot 解线性方程（可求多右端）。
 7. Que fait la fonction `dgbsv` ?  
    `dgbsv` 功能？  
+   - `dgbsv` 是便捷 driver：直接对带状矩阵完成 LU 分解并求解 `A x = b`（内部调用 `dgbtrf`/`dgbtrs`）。  
 8. Comment calculer la norme du résidu relatif avec des appels BLAS ?  
    如何用 BLAS 调用计算相对残差范数？
+   - 复制 `b` 到 `r`，用 `dgbmv` 计算 `r = b - A*x`（设 `alpha=-1,beta=1`）；然后 `rel = dnrm2(n,r,1) / dnrm2(n,b,1)`（必要时用 `dcopy` 和 `dgbmv`/`dnrm2`/`daxpy`）。
 
 ## ▷ Exercice 4. Stockage GB et appel à `dgbmv` / 练习 4：GB 存储与 `dgbmv`
 
@@ -145,14 +153,19 @@ Les éléments `*` sont généralement remplis à 0.
 2. Utiliser la fonction BLAS `dgbmv` avec cette matrice.  
    用该矩阵调用 `dgbmv`。  
 3. Proposer une méthode de validation.  
-   给出验证方法。
+   给出验证方法。  
+   - Méthode de validation / 验证思路：用小尺寸矩阵同时计算 (i) 手工密集乘 `y_ref = A*x`（或 Matlab/Scilab），(ii) `dgbmv` 产出的 `y_dgbmv`，比较两者差的范数；或用已知向量（如全 1 向量）检查结果是否等于解析表达。
 
 ## ▷ Exercice 5. `dgbtrf`, `dgbtrs`, `dgbsv` (à rendre) / 练习 5（需提交）
 
 1. Résoudre le système linéaire par une méthode directe avec LAPACK.  
    用 LAPACK 直接法求解线性系统。  
-2. Évaluer les performances. Discuter la complexité des méthodes appelées.  
+   - Utiliser `dgbtrf` + `dgbtrs`.  
+   - 用 `dgbtrf` + `dgbtrs`。
+2. Évaluer les performances. Discuter la complexité des méthodes appelées.
    评估性能并讨论所用方法的复杂度。
+   - La complexité de `dgbtrf` est $O(n (kl + ku)^2)$, et celle de `dgbtrs` est $O(n (kl + ku))$.
+   - `dgbtrf` 的复杂度为 $O(n (kl + ku)^2)$，`dgbtrs` 为 $O(n (kl + ku))$。
 
 ## ▷ Exercice 6. LU pour matrices tridiagonales (à rendre) / 练习 6（需提交）
 
@@ -160,6 +173,7 @@ Les éléments `*` sont généralement remplis à 0.
    在 GB 格式下实现三对角矩阵的 LU 分解。  
 2. Proposer une méthode de validation.  
    提出验证方法。  
+   - Méthode de validation / 验证思路：用同一矩阵调用 LAPACK `dgbtrf`/`dgbsv` 得到参考解或因子，对比自实现的解向量或 LU 因子；或重建 $L\!U$ 并检查 $\|A-LU\|$、以及解的残差 $\|Ax-b\|/\|b\|$ 是否在容差内。
 3. Évaluer les performances et comparer. Discuter les complexités.  
    评估并比较性能，讨论复杂度。
 

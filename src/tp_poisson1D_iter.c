@@ -109,7 +109,7 @@ int main(int argc,char *argv[])
   /* Richardson General Tridiag (Preconditioned methods) */
 
   /* get MB (:=M, D for Jacobi, (D-E) for Gauss-seidel) */
-  kv = 1;               /* Need extra space for factorization */
+  kv = 0;               /* No extra space needed for iterative methods */
   ku = 1;
   kl = 1;
   MB = (double *) malloc(sizeof(double)*(lab)*la);

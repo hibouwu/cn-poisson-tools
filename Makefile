@@ -44,17 +44,21 @@ OBJENV= tp_env.o
 OBJLIBPOISSON= lib_poisson1D$(SOL).o lib_poisson1D_writers.o lib_poisson1D_richardson$(SOL).o
 OBJTP2ITER= $(OBJLIBPOISSON) tp_poisson1D_iter.o
 OBJTP2DIRECT= $(OBJLIBPOISSON) tp_poisson1D_direct.o
+OBJTESTS= $(OBJLIBPOISSON) tests_validation.o
+
 #
 .PHONY: all
 
-all: bin/tp_testenv bin/tpPoisson1D_iter bin/tpPoisson1D_direct
-run: run_testenv run_tpPoisson1D_iter run_tpPoisson1D_direct
+all: bin/tp_testenv bin/tpPoisson1D_iter bin/tpPoisson1D_direct bin/tests_validation
+run: run_testenv run_tpPoisson1D_iter run_tpPoisson1D_direct run_tests
 
 testenv: bin/tp_testenv
 
 tpPoisson1D_iter: bin/tpPoisson1D_iter
 
 tpPoisson1D_direct: bin/tpPoisson1D_direct
+
+tests_validation: bin/tests_validation
 
 %.o : $(TPDIRSRC)/%.c
 	$(CC) $(OPTC) -c $(INCL) $<
@@ -68,6 +72,9 @@ bin/tpPoisson1D_iter: $(OBJTP2ITER)
 bin/tpPoisson1D_direct: $(OBJTP2DIRECT)
 	$(CC) -o bin/tpPoisson1D_direct $(OPTC) $(OBJTP2DIRECT) $(LIBS)
 
+bin/tests_validation: $(OBJTESTS)
+	$(CC) -o bin/tests_validation $(OPTC) $(OBJTESTS) $(LIBS)
+
 run_testenv:
 	bin/tp_testenv
 
@@ -80,6 +87,9 @@ run_tpPoisson1D_direct:
 	bin/tpPoisson1D_direct
 	bin/tpPoisson1D_direct 1
 	bin/tpPoisson1D_direct 2
+
+run_tests:
+	bin/tests_validation
 
 clean:
 	rm *.o bin/*
