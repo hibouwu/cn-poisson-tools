@@ -12,20 +12,19 @@ void set_GB_operator_colMajor_poisson1D(double* AB, int *lab, int *la, int *kv){
   // Initialize the whole matrix storage to zero
   memset(AB, 0, (size_t)(*la) * (*lab) * sizeof(double));
   // Set up the tridiagonal matrix for 1D Poisson: -1, 2, -1
-  for (int j = 1; j < *la; j++) {AB[j * (*lab) + (*kv)] = -1.0;}
-  for (int j = 0; j < *la; j++) {AB[j * (*lab) + (*kv + 1)] = 2.0;}
-  for (int j = 0; j < *la - 1; j++) {AB[j * (*lab) + (*kv + 2)] = -1.0;}
+  for (int j = 1; j < *la; j++) {AB[indexABCol(*kv, j, lab)] = -1.0;}
+  for (int j = 0; j < *la; j++) {AB[indexABCol(*kv + 1, j, lab)] = 2.0;}
+  for (int j = 0; j < *la - 1; j++) {AB[indexABCol(*kv + 2, j, lab)] = -1.0;}
 }
 
 void set_GB_operator_colMajor_poisson1D_Id(double* AB, int *lab, int *la, int *kv){
   // Initialize the whole matrix storage to zero
   memset(AB, 0, (size_t)(*la) * (*lab) * sizeof(double));
   // Set diagonal elements to 1
-  for (int j = 0; j < *la; j++) {AB[j * (*lab) + (*kv + 1)] = 1.0;}
+  for (int j = 0; j < *la; j++) {AB[indexABCol(*kv + 1, j, lab)] = 1.0;}
 }
 
 void set_dense_RHS_DBC_1D(double* RHS, int* la, double* BC0, double* BC1){
-  if (*la <= 0) {return;}
   // Initialize RHS to zero
   memset(RHS, 0, (size_t)(*la) * sizeof(double));
   RHS[0] += (*BC0);      // T0 dans le premier point (boundary T0)
@@ -34,7 +33,8 @@ void set_dense_RHS_DBC_1D(double* RHS, int* la, double* BC0, double* BC1){
 
 void set_analytical_solution_DBC_1D(double* EX_SOL, double* X, int* la, double* BC0, double* BC1){
   // Linear solution between BC0 and BC1
-  for (int i = 0; i < *la; i++) {EX_SOL[i] = (*BC0) + X[i] * ((*BC1) - (*BC0));}
+  double DELTA_T = (*BC1) - (*BC0);
+  for (int i = 0; i < *la; i++) {EX_SOL[i] = (*BC0) + X[i] * DELTA_T;}
 }
 
 void set_grid_points_1D(double* x, int* la){
@@ -52,10 +52,10 @@ double relative_forward_error(double* x, double* y, int* la){
   cblas_daxpy(*la, -1.0, x, 1, work, 1); // work = work - x = y - x
   // Compute norms
   double num = cblas_dnrm2(*la, work, 1); // ||x - y||
-  double den = cblas_dnrm2(*la, y, 1);    // ||y|| (reference)
+  double den = cblas_dnrm2(*la, x, 1);    // ||x|| (reference)
   free(work);
   if (den == 0.0) {return (num == 0.0) ? 0.0 : DBL_MAX;}
-  return num / den;
+  return num / den; // return ||x - y||/||x||
 }
 
 int indexABCol(int i, int j, int *lab){return j * (*lab) + i;}
@@ -67,19 +67,19 @@ int dgbtrftridiag(int *la, int*n, int *kl, int *ku, double *AB, int *lab, int *i
   for (int i = 0; i < *n; i++) {ipiv[i] = i + 1;}
   // Gaussian elimination for tridiagonal matrix
   for (int j = 0; j < *n - 1; j++) {
-    double pivot = AB[j * (*lab) + (*kl + *ku)];
+    double pivot = AB[indexABCol(*kl + *ku, j, lab)];
     if (pivot == 0.0) {
       *info = j + 1; // Singular matrix
       return *info;
     }
     // Calculate multiplier (factor) for the sub-diagonal element
-    double factor = AB[j * (*lab) + (*ku + 2 * (*kl))] / pivot;
-    AB[j * (*lab) + (*ku + 2 * (*kl))] = factor; // Store L part in place
+    double factor = AB[indexABCol(*ku + 2 * (*kl), j, lab)] / pivot;
+    AB[indexABCol(*ku + 2 * (*kl), j, lab)] = factor; // Store L part in place
     // Update the next diagonal element
-    AB[(j + 1) * (*lab) + (*kl + *ku)] -= factor * AB[(j + 1) * (*lab) + (*kl)];
+    AB[indexABCol(*kl + *ku, j + 1, lab)] -= factor * AB[indexABCol(*kl, j + 1, lab)];
   }
   // Check the last diagonal element
-  if (AB[(*n - 1) * (*lab) + (*kl + *ku)] == 0.0) {
+  if (AB[indexABCol(*kl + *ku, *n - 1, lab)] == 0.0) {
     *info = *n;
   }
   return *info;
