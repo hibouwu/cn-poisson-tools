@@ -76,6 +76,8 @@ Pour lancer les solveurs itératifs et analyser la convergence :
 # Le fichier RESVEC.dat contiendra l'historique du résidu
 ```
 
+Paramètres de `tpPoisson1D_iter` : `0=Richardson (GB)`, `1=Jacobi (GB)`, `2=Gauss-Seidel (GB)`, `3=Richardson (CSR)`, `4=Richardson (CSC)`.
+
 **Comparaison de convergence :**
 Vous pouvez utiliser les scripts pour générer les données de convergence et tracer les courbes :
 
