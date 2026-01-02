@@ -84,3 +84,68 @@ int dgbtrftridiag(int *la, int*n, int *kl, int *ku, double *AB, int *lab, int *i
   }
   return *info;
 }
+
+void set_CSR_operator_poisson1D(CSRMatrix *mat, int *la) {
+    int n = *la;
+    mat->n = n;
+    mat->nnz = 3 * n - 2; // Tridiagonal: 3N - 2 non-zeros
+    mat->values = (double *)malloc(mat->nnz * sizeof(double));
+    mat->col_ind = (int *)malloc(mat->nnz * sizeof(int));
+    mat->row_ptr = (int *)malloc((n + 1) * sizeof(int));
+
+    int count = 0;
+    mat->row_ptr[0] = 0;
+
+    for (int i = 0; i < n; i++) {
+        // Lower diagonal (-1)
+        if (i > 0) {
+            mat->values[count] = -1.0;
+            mat->col_ind[count] = i - 1;
+            count++;
+        }
+        // Main diagonal (2)
+        mat->values[count] = 2.0;
+        mat->col_ind[count] = i;
+        count++;
+        // Upper diagonal (-1)
+        if (i < n - 1) {
+            mat->values[count] = -1.0;
+            mat->col_ind[count] = i + 1;
+            count++;
+        }
+        mat->row_ptr[i + 1] = count;
+    }
+}
+
+void set_CSC_operator_poisson1D(CSCMatrix *mat, int *la) {
+    int n = *la;
+    mat->n = n;
+    mat->nnz = 3 * n - 2;
+    mat->values = (double *)malloc(mat->nnz * sizeof(double));
+    mat->row_ind = (int *)malloc(mat->nnz * sizeof(int));
+    mat->col_ptr = (int *)malloc((n + 1) * sizeof(int));
+
+    int count = 0;
+    mat->col_ptr[0] = 0;
+
+    for (int j = 0; j < n; j++) {
+        // Upper diagonal (-1), stored first in column j because its row index is j-1
+        if (j > 0) {
+            mat->values[count] = -1.0;
+            mat->row_ind[count] = j - 1;
+            count++;
+        }
+        // Main diagonal (2)
+        mat->values[count] = 2.0;
+        mat->row_ind[count] = j;
+        count++;
+        // Lower diagonal (-1), stored last in column j because its row index is j+1
+        if (j < n - 1) {
+            mat->values[count] = -1.0;
+            mat->row_ind[count] = j + 1;
+            count++;
+        }
+        mat->col_ptr[j + 1] = count;
+    }
+}
+

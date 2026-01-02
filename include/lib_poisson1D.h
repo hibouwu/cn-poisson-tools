@@ -214,3 +214,65 @@ int indexABCol(int i, int j, int *lab);
  * @return info value
  */
 int dgbtrftridiag(int *la, int *n, int *kl, int *ku, double *AB, int *lab, int *ipiv, int *info);
+
+/**
+ * CSRMatrix structure
+ */
+typedef struct {
+    double *values; // stores non-zero elements
+    int *col_ind;   // stores column indices
+    int *row_ptr;   // stores row pointers
+    int nnz;        // number of non-zero elements
+    int n;          // number of rows/columns (square matrix)
+} CSRMatrix;
+
+/**
+ * CSCMatrix structure
+ */
+typedef struct {
+    double *values; // stores non-zero elements
+    int *row_ind;   // stores row indices
+    int *col_ptr;   // stores column pointers
+    int nnz;        // number of non-zero elements
+    int n;          // number of rows/columns (square matrix)
+} CSCMatrix;
+
+/**
+ * Set up the Poisson 1D operator in CSR format
+ * @param lambda: Output CSR matrix
+ * @param la: Problem size
+ */
+void set_CSR_operator_poisson1D(CSRMatrix *mat, int *la);
+
+/**
+ * Set up the Poisson 1D operator in CSC format
+ * @param lambda: Output CSC matrix
+ * @param la: Problem size
+ */
+void set_CSC_operator_poisson1D(CSCMatrix *mat, int *la);
+
+/**
+ * Matrix-Vector multiplication in CSR format: y = A * x
+ * @param mat: CSR matrix A
+ * @param x: Input vector x
+ * @param y: Output vector y
+ */
+void dcsrmv(CSRMatrix *mat, double *x, double *y);
+
+/**
+ * Matrix-Vector multiplication in CSC format: y = A * x
+ * @param mat: CSC matrix A
+ * @param x: Input vector x
+ * @param y: Output vector y
+ */
+void dcscmv(CSCMatrix *mat, double *x, double *y);
+
+/**
+ * Solve linear system using Richardson iteration with CSR format
+ */
+void richardson_alpha_csr(CSRMatrix *mat, double *RHS, double *X, double *alpha_rich, double *tol, int *maxit, double *resvec, int *nbite);
+
+/**
+ * Solve linear system using Richardson iteration with CSC format
+ */
+void richardson_alpha_csc(CSCMatrix *mat, double *RHS, double *X, double *alpha_rich, double *tol, int *maxit, double *resvec, int *nbite);

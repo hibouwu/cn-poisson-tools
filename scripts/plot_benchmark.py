@@ -26,11 +26,19 @@ def plot_benchmark(file_path):
 
     plt.figure(figsize=(10, 6))
 
-    # Plot each method
-    for method_id in sorted(df['Method'].unique()):
-        subset = df[df['Method'] == method_id].sort_values(by='Size')
+    # Plot each method with Error Bars
+    # Filter small sizes if needed, but error bars should handle noise visibility
+    # df = df[df['Size'] >= 1000] 
+    
+    # Aggregation
+    grouped = df.groupby(['Method', 'Size'])['Time(ms)'].agg(['mean', 'std']).reset_index()
+    
+    for method_id in sorted(grouped['Method'].unique()):
+        subset = grouped[grouped['Method'] == method_id].sort_values(by='Size')
         label = method_labels.get(method_id, f'Method {method_id}')
-        plt.plot(subset['Size'], subset['Time(ms)'], marker='o', label=label)
+        
+        plt.errorbar(subset['Size'], subset['mean'], yerr=subset['std'], 
+                     marker='o', label=label, capsize=5)
 
     # Configuration
     plt.title('Poisson 1D Direct Solver Performance')

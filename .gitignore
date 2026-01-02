@@ -29,3 +29,15 @@ cmake-build-*/
 *.trace
 *.prof
 *.dat
+*.txt
+
+RapportBuild/*.aux
+RapportBuild/*.out
+RapportBuild/*.toc
+RapportBuild/*.fdb_latexmk
+RapportBuild/*.fls
+RapportBuild/*.log
+RapportBuild/*.synctex.gz
+
+TDP.md
+TDP.pdf

@@ -114,3 +114,85 @@ void richardson_MB(double *AB, double *RHS, double *X, double *MB, int *lab, int
   free(r);
   free(z);
 }
+
+void dcsrmv(CSRMatrix *mat, double *x, double *y) {
+    for (int i = 0; i < mat->n; i++) {
+        double sum = 0.0;
+        for (int j = mat->row_ptr[i]; j < mat->row_ptr[i+1]; j++) {
+            sum += mat->values[j] * x[mat->col_ind[j]];
+        }
+        y[i] = sum;
+    }
+}
+
+void dcscmv(CSCMatrix *mat, double *x, double *y) {
+    // Initialize y to 0
+    for (int i = 0; i < mat->n; i++) {
+        y[i] = 0.0;
+    }
+    // Iterate over columns
+    for (int j = 0; j < mat->n; j++) {
+        for (int i = mat->col_ptr[j]; i < mat->col_ptr[j+1]; i++) {
+            y[mat->row_ind[i]] += mat->values[i] * x[j];
+        }
+    }
+}
+
+void richardson_alpha_csr(CSRMatrix *mat, double *RHS, double *X, double *alpha_rich, double *tol, int *maxit, double *resvec, int *nbite) {
+    int n = mat->n;
+    double *r = (double *)malloc(n * sizeof(double));
+    double *Ax = (double *)malloc(n * sizeof(double));
+    double norm_b = cblas_dnrm2(n, RHS, 1);
+    
+    if (norm_b == 0.0) norm_b = 1.0;
+
+    for (*nbite = 0; *nbite < *maxit; (*nbite)++) {
+        // Calculate r = b - A * x
+        dcsrmv(mat, X, Ax); // Ax = A * x
+        
+        // r = RHS - Ax
+        cblas_dcopy(n, RHS, 1, r, 1); // r = b
+        cblas_daxpy(n, -1.0, Ax, 1, r, 1); // r = r - Ax
+
+        // Check convergence
+        double norm_r = cblas_dnrm2(n, r, 1);
+        resvec[*nbite] = norm_r / norm_b;
+        if (resvec[*nbite] < *tol) break;
+
+        // Update x: x = x + alpha * r
+        cblas_daxpy(n, *alpha_rich, r, 1, X, 1);
+    }
+
+    free(r);
+    free(Ax);
+}
+
+void richardson_alpha_csc(CSCMatrix *mat, double *RHS, double *X, double *alpha_rich, double *tol, int *maxit, double *resvec, int *nbite) {
+    int n = mat->n;
+    double *r = (double *)malloc(n * sizeof(double));
+    double *Ax = (double *)malloc(n * sizeof(double));
+    double norm_b = cblas_dnrm2(n, RHS, 1);
+    
+    if (norm_b == 0.0) norm_b = 1.0;
+
+    for (*nbite = 0; *nbite < *maxit; (*nbite)++) {
+        // Calculate r = b - A * x
+        dcscmv(mat, X, Ax); // Ax = A * x
+        
+        // r = RHS - Ax
+        cblas_dcopy(n, RHS, 1, r, 1); // r = b
+        cblas_daxpy(n, -1.0, Ax, 1, r, 1); // r = r - Ax
+
+        // Check convergence
+        double norm_r = cblas_dnrm2(n, r, 1);
+        resvec[*nbite] = norm_r / norm_b;
+        if (resvec[*nbite] < *tol) break;
+
+        // Update x: x = x + alpha * r
+        cblas_daxpy(n, *alpha_rich, r, 1, X, 1);
+    }
+
+    free(r);
+    free(Ax);
+}
+

@@ -5,17 +5,21 @@
 /* iterative methods (Richardson)         */
 /******************************************/
 #include "lib_poisson1D.h"
+#include <time.h>
 
 #define ALPHA 0  /* Richardson iteration with optimal alpha */
 #define JAC 1    /* Richardson with Jacobi preconditioning */
 #define GS 2     /* Richardson with Gauss-Seidel preconditioning */
+
+#define CSR 3 /* Richardson with CSR format */
+#define CSC 4 /* Richardson with CSC format */
 
 /**
  * Main function to solve the 1D Poisson equation using iterative methods.
  * 
  * @param argc: Number of command-line arguments
  * @param argv: Array of argument strings
- *              argv[1] (optional): Method selection (0=ALPHA, 1=JAC, 2=GS)
+ *              argv[1] (optional): Method selection (0=ALPHA, 1=JAC, 2=GS, 3=CSR, 4=CSC)
  * @return 0 on success
  */
 int main(int argc,char *argv[])
@@ -29,26 +33,35 @@ int main(int argc,char *argv[])
   int *ipiv;                          /* Pivot indices (unused in iterative methods) */
   int info;                           /* Info parameter */
   int NRHS;                           /* Number of right-hand sides */
-  int IMPLEM = 0;                     /* Implementation method (ALPHA, JAC, or GS) */
+  int IMPLEM = 0;                     /* Implementation method (ALPHA, JAC, GS, CSR_RICH, CSC_RICH) */
   double T0, T1;                      /* Boundary conditions */
   double *RHS, *SOL, *EX_SOL, *X;     /* RHS, solution, exact solution, grid points */
   double *AB;                         /* Coefficient matrix */
   double *MB;                         /* Preconditioner matrix */
   
+  // Dense CSR/CSC structures
+  CSRMatrix CSR_A;
+  CSCMatrix CSC_A;
+  
   double temp, relres;                /* Temporary variable and relative residual */
 
   double opt_alpha;                   /* Optimal relaxation parameter */
 
-  if (argc == 2) {
+  if (argc >= 2) {
     IMPLEM = atoi(argv[1]);
-  } else if (argc > 2) {
-    perror("Application takes at most one argument");
+  } 
+  
+  if (argc > 3) {
+    perror("Application takes at most two arguments");
     exit(1);
   }
 
   /* Problem size setup */
   NRHS=1;           /* Single right-hand side */
   nbpoints=12;      /* Total discretization points */
+  if (argc >= 3) {
+      nbpoints = atoi(argv[2]);
+  }
   la=nbpoints-2;    /* Interior points only */
 
   /* Dirichlet Boundary conditions */
@@ -91,7 +104,7 @@ int main(int argc,char *argv[])
 
   /* Computation of optimum alpha */
   opt_alpha = richardson_alpha_opt(&la);
-  printf("Optimal alpha for simple Richardson iteration is : %lf",opt_alpha); 
+  printf("Optimal alpha for simple Richardson iteration is : %lf\n",opt_alpha); 
 
   /* Solve with Richardson iteration parameters */
   double tol=1e-3;      /* Convergence tolerance for residual norm */
@@ -100,6 +113,10 @@ int main(int argc,char *argv[])
   int nbite=0;          /* Number of iterations performed */
 
   resvec=(double *) calloc(maxit, sizeof(double));
+
+  clock_t start, end;
+  double cpu_time_used;
+  start = clock();
 
   /* Solve with Richardson alpha (simple Richardson with optimal alpha) */
   if (IMPLEM == ALPHA) {
@@ -129,11 +146,40 @@ int main(int argc,char *argv[])
     richardson_MB(AB, RHS, SOL, MB, &lab, &la, &ku, &kl, &tol, &maxit, resvec, &nbite);
   }
 
+  /* Solve with CSR Richardson */
+  if (IMPLEM == CSR) {
+      set_CSR_operator_poisson1D(&CSR_A, &la);
+      richardson_alpha_csr(&CSR_A, RHS, SOL, &opt_alpha, &tol, &maxit, resvec, &nbite);
+      // Free CSR
+      free(CSR_A.values);
+      free(CSR_A.col_ind);
+      free(CSR_A.row_ptr);
+  }
+
+  /* Solve with CSC Richardson */
+  if (IMPLEM == CSC) {
+      set_CSC_operator_poisson1D(&CSC_A, &la);
+      richardson_alpha_csc(&CSC_A, RHS, SOL, &opt_alpha, &tol, &maxit, resvec, &nbite);
+      // Free CSC
+      free(CSC_A.values);
+      free(CSC_A.row_ind);
+      free(CSC_A.col_ptr);
+  }
+  
+  end = clock();
+  cpu_time_used = ((double) (end - start)) * 1000.0 / CLOCKS_PER_SEC; // in ms
+  printf("Execution time (IMPLEM=%d, N=%d): %f ms\n", IMPLEM, nbpoints, cpu_time_used);
+  printf("Nb iterations: %d\n", nbite);
+
   /* Write solution and convergence history to files */
   write_vec(SOL, &la, "SOL.dat");              /* Final solution */
 
   /* Write convergence history */
   write_vec(resvec, &nbite, "RESVEC.dat");     /* Residual norm at each iteration */
+  
+  /* Validate result */
+  relres = relative_forward_error(SOL, EX_SOL, &la);
+  printf("\nThe relative forward error is relres = %e\n", relres);
 
   /* Free allocated memory */
   free(resvec);
